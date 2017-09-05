@@ -230,6 +230,17 @@
       <artifactId>cglib-nodep</artifactId>
       <version>3.2.4</version>
     </dependency>
+
+    <dependency>
+      <groupId>org.apache.poi</groupId>
+      <artifactId>poi</artifactId>
+      <version>3.9</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.poi</groupId>
+      <artifactId>poi-examples</artifactId>
+      <version>3.9</version>
+    </dependency>
   </dependencies>
   <build>
     <finalName>universitiesResultsStatistical</finalName>

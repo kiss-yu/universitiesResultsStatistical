@@ -17,14 +17,5 @@ public class StartupManager implements InitializingBean {
 
 	@Override
 	public void afterPropertiesSet() throws Exception {
-		Properties properties = new Properties();
-		try {
-			properties.load(application.getResourceAsStream("WEB-INF/classes/application.properties"));
-			Map<String, String> applicationMap = new HashMap<String, String>((Map) properties);
-			application.setAttribute("application", applicationMap);
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		System.out.println("Startup Manager has initialized completed.");
 	}
 }
