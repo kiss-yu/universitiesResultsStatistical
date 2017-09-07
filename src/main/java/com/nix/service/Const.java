@@ -39,27 +39,30 @@ public final class Const {
     }
 
     private static void maintenance(){
-        new Thread(() -> {
-            while (true) {
-                try {
-                    Long now = System.currentTimeMillis();
-                    for (Map.Entry<String, Object> entry : Const.COMPUTATIONS_ID.entrySet()) {
-                        if (entry.getKey().matches("[\\d]+")) {
-                            String id = entry.getKey();
-                            Long time = (Long) Const.COMPUTATIONS_ID.get(id + "_time");
-                            if (time + 1000 * 60 * TIME_OUT_ID < now) {
-                                File file = new File((String) entry.getValue());
-                                LogKit.info(Const.class,"id:" + id + "过期 开始删除对应文件");
-                                file.delete();
-                                removeMap(id);
-                                removeMap(id + "_time");
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                while (true) {
+                    try {
+                        Long now = System.currentTimeMillis();
+                        for (Map.Entry<String, Object> entry : Const.COMPUTATIONS_ID.entrySet()) {
+                            if (entry.getKey().matches("[\\d]+")) {
+                                String id = entry.getKey();
+                                Long time = (Long) Const.COMPUTATIONS_ID.get(id + "_time");
+                                if (time + 1000 * 60 * TIME_OUT_ID < now) {
+                                    File file = new File((String) entry.getValue());
+                                    LogKit.info(Const.class,"id:" + id + "过期 开始删除对应文件");
+                                    file.delete();
+                                    removeMap(id);
+                                    removeMap(id + "_time");
+                                }
                             }
                         }
+                        LogKit.info(Const.class,"维护文件id线程开始休眠");
+                        Thread.sleep(24*60*60*1000);
+                    }catch (Exception e){
+                        LogKit.error(Const.class,"维护文件id线程休眠失败");
                     }
-                    LogKit.info(Const.class,"维护文件id线程开始休眠");
-                    Thread.sleep(24*60*60*1000);
-                }catch (Exception e){
-                    LogKit.error(Const.class,"维护文件id线程休眠失败");
                 }
             }
         }).start();

@@ -12,10 +12,8 @@ import com.nix.common.captcha.sevice.ConfigurableCaptchaService;
 import com.nix.common.captcha.text.renderer.BestFitTextRenderer;
 import com.nix.common.captcha.text.renderer.TextRenderer;
 import com.nix.common.captcha.word.RandomWordFactory;
-import com.sun.deploy.net.HttpResponse;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.springframework.http.HttpRequest;
 
 import java.awt.Color;
 import java.awt.image.BufferedImage;
