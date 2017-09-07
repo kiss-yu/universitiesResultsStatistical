@@ -2,15 +2,18 @@ package com.nix.controller;
 
 import com.nix.controller.base.BaseController;
 import com.nix.service.CommonService;
+import com.nix.service.Const;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.servlet.ServletOutputStream;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.File;
+import java.io.FileInputStream;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,7 +47,7 @@ public class CommonController extends BaseController{
      *根据筛选条件选出数据并计算
      * */
     @ResponseBody
-    @RequestMapping(value = "/result",method = RequestMethod.GET)
+    @RequestMapping(value = "/result",method = RequestMethod.POST)
     public Map<String,Object> result(@RequestParam(value = "id")Integer id,@RequestParam(value = "credits")Integer credits,
                       @RequestParam(value = "results")Integer results,@RequestParam(value = "courses") Integer courses,
                       @RequestParam(value = "columns")String[] columns,@RequestParam(value = "formula") String formula){
@@ -55,8 +58,82 @@ public class CommonController extends BaseController{
             map.put("msg","公式格式错误");
             return map;
         }
-        map.put("status",SUCCESS);
-        map.putAll(commonService.result(String.valueOf(id),credits,results,courses,columns,formula));
+        try {
+            map.put("content",commonService.result(String.valueOf(id),credits,results,courses,columns,formula));
+            map.put("status",SUCCESS);
+        }catch (Exception e){
+            map.put("status",FAIL);
+            map.put("msg","课程行选择错误或者列选择有错误(请确保事例同学的重修课程，个人选修课程一剔除)");
+            return map;
+        }
+
         return map;
+    }
+
+
+    /**
+     * 根据计算单元id值获取excel信息返回前端筛选
+     * */
+    @ResponseBody
+    @RequestMapping(value = "/{id}",method = RequestMethod.POST)
+    public Map<String,Object> getExcelMsgById(@PathVariable("id") String id){
+        Map<String,Object> map = commonService.getParamMsg(id);
+        if (map == null){
+            map.put("status",FAIL);
+            map.put("msg","错误id");
+            return map;
+        }
+        map.put("status",SUCCESS);
+        return map;
+    }
+
+    /**
+     * 获取下载地址
+     * */
+    @ResponseBody
+    @RequestMapping("/download_url")
+    public Map<String,Object> getDownloadUrl(@RequestParam(value = "id")String id){
+        String fileName = Const.getFileName(id).replaceAll(Const.FILE_PATH,"");
+        HashMap<String,Object> map = new HashMap<>();
+        map.put("redirect","/nix/download.do?fileName=" + fileName);
+        return map;
+    }
+    /**
+     * 断点续传
+     * */
+    @ResponseBody
+    @RequestMapping("/download")
+    public void download(HttpServletRequest request, HttpServletResponse response,@RequestParam(value = "fileName")String fileName) {
+        String path = Const.FILE_PATH + fileName;
+        File file = new File(path);
+        try {
+            response.reset();
+            response.setCharacterEncoding("utf-8");
+            response.setContentType("application/x-download");
+            response.setHeader("Accept-Ranges", "bytes");
+            response.setHeader("Content-Length", String.valueOf(file.length()));
+            response.setHeader("Content-Disposition", "attachment; filename=\"" + new String(fileName.getBytes("UTF-8"), "iso-8859-1") + "\"");
+            FileInputStream in = new FileInputStream(file.getPath());
+            long pos = 0;
+            if (null != request.getHeader("Range")) {
+                response.setStatus(HttpServletResponse.SC_PARTIAL_CONTENT);
+                try {
+                    pos = Long.parseLong(request.getHeader("Range").replaceAll("bytes=", "").replaceAll("-", ""));
+                } catch (NumberFormatException e) {
+                    pos = 0;
+                }
+            }
+            ServletOutputStream out = response.getOutputStream();
+            String contentRange = new StringBuffer("bytes ").append(pos + "").append("-").append((file.length() - 1) + "").append("/").append(file.length() + "").toString();
+            response.setHeader("Content-Range", contentRange);
+            in.skip(pos);
+            byte[] buffer = new byte[1024 * 10];
+            int length = 0;
+            while ((length = in.read(buffer, 0, buffer.length)) != -1) {
+                out.write(buffer, 0, length);
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+        }
     }
 }

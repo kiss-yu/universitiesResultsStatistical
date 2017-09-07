@@ -12,41 +12,83 @@ function uploadXls() {
         processData: false,
         data : formData,
         success : function(data) {
-            var msgDiv = $("#xls_msg").children()[0];
-            msgDiv.innerHTML = "";
-            var myArray=new Array();
-            for (var j = 0;j < data.courese[0].length;j ++){
-                data.courese[0][j] == "" ? null : myArray.push(j);
-            }
-            var tr = $("<tr style='background-color: #eee' onmouseover=\"changeTrBackground(this)\" onmouseout=\"recovery(this)\"></tr>").appendTo(msgDiv);
-            for (var i = 0;i < myArray.length;i ++){
-                if (i == 0) $("<th>选择课程</th>").appendTo(tr);
-                $("<th>" + getInput("line",myArray[i])+ "</th>").appendTo(tr);
-            }
-            tr = $("<tr  onmouseover=\"changeTrBackground(this)\" onmouseout=\"recovery(this)\"></tr>").appendTo(msgDiv);
-            for (var i = 0;i < myArray.length;i ++){
-                if (i == 0) $("<th></th>").appendTo(tr);
-                $("<th>" + data.column[myArray[i]] + "</th>").appendTo(tr);
-            }
-            for (var i = 0;i < data.courese.length;i ++) {
-                tr = $("<tr style='background-color: " + (i%2 == 1 ? "#fff" : "#eee") + "' onmouseover=\"changeTrBackground(this)\" onmouseout=\"recovery(this)\"></tr>").appendTo(msgDiv);
-                $("<td>" + getInput("column",i) + "</td>").appendTo(tr);
-                for (var j = 0;j < myArray.length;j ++){
-                    $("<td>" + data.courese[i][myArray[j]] + "</td>").appendTo(tr);
-                }
-            }
-            $("#before").hide();
-            $("#after").show();
-            file_id = data.file_id;
-            alert("当前计算单元id值为:" + data.file_id );
-            $("#after_id").html("当前计算单元id值为:" + data.file_id + "<br/>有效时间至:" + getNowFormatDate());
+            settingMsg(data,true);
         },
         error:function (data) {
 
         }
     });
 }
-var file_id = "2393336";
+function settingMsg(data,type) {
+    if (data.status == 0) {
+        alert(data.msg);
+        return;
+    }
+    var msgDiv = $("#xls_msg").children()[0];
+    msgDiv.innerHTML = "";
+    var myArray=new Array();
+    for (var j = 0;j < data.courese[0].length;j ++){
+        data.courese[0][j] == "" ? null : myArray.push(j);
+    }
+    if (myArray.length == 2){
+        var tr = $("<tr style='font-size: 30px;background-color: #eee'></tr>").appendTo(msgDiv);
+        $("<th>学号</th>").appendTo(tr);
+        $("<th>最终成绩</th>").appendTo(tr);
+        for (var i = 0; i < data.courese.length; i++) {
+            tr = $("<tr style='font-size: 25px;background-color: " + (i % 2 == 0 ? "#fff" : "#eee") + "' onmouseover=\"changeTrBackground(this)\" onmouseout=\"recovery(this)\"></tr>").appendTo(msgDiv);
+            for (var j = 0; j < myArray.length; j++) {
+                $("<td>" + data.courese[i][myArray[j]] + "</td>").appendTo(tr);
+            }
+        }
+        $("#before").hide();
+        $("#after").hide();
+        $("#download").show();
+    }else {
+        var tr = $("<tr style='background-color: #eee' onmouseover=\"changeTrBackground(this)\" onmouseout=\"recovery(this)\"></tr>").appendTo(msgDiv);
+        for (var i = 0; i < myArray.length; i++) {
+            if (i == 0) $("<th>选择课程</th>").appendTo(tr);
+            $("<th>" + getInput("line", myArray[i]) + "</th>").appendTo(tr);
+        }
+        tr = $("<tr  onmouseover=\"changeTrBackground(this)\" onmouseout=\"recovery(this)\"></tr>").appendTo(msgDiv);
+        for (var i = 0; i < myArray.length; i++) {
+            if (i == 0) $("<th></th>").appendTo(tr);
+            $("<th>" + data.column[myArray[i]] + "</th>").appendTo(tr);
+        }
+        for (var i = 0; i < data.courese.length; i++) {
+            tr = $("<tr style='color: red;background-color: " + (i % 2 == 1 ? "#fff" : "#eee") + "' onmouseover=\"changeTrBackground(this)\" onmouseout=\"recovery(this)\"></tr>").appendTo(msgDiv);
+            $("<td>" + getInput("column", i) + "</td>").appendTo(tr);
+            for (var j = 0; j < myArray.length; j++) {
+                $("<td>" + data.courese[i][myArray[j]] + "</td>").appendTo(tr);
+            }
+        }
+        $("#before").hide();
+        $("#after").show();
+    }
+    file_id = data.file_id;
+    if (type) alert("当前计算单元id值为:" + data.file_id);
+    $("#after_id").html("当前计算单元id值为:" + data.file_id + "<br/>有效时间至:" + getNowFormatDate(new Date(data.create_time)));
+    settingPrompting("事例同学成绩表");
+}
+function downloadExcel(){
+    $.ajax({
+        url:"/nix/download_url.do?id=" + file_id,
+        type: "GET",
+        success:function (data) {
+            location.href = data.redirect;
+        }
+    });
+}
+function getMsgById() {
+    var id = $('input:text[name=file_id]').val();
+    $.ajax({
+        url:"/nix/" + id + ".do",
+        type: "POST",
+        success:function (data) {
+            settingMsg(data,false);
+        }
+    });
+}
+var file_id ;
 var trBackground;
 function changeTrBackground(tr) {
     trBackground = tr.style.backgroundColor;
@@ -81,8 +123,8 @@ function paramLine(input) {
     }*/
 }
 
-function getNowFormatDate() {
-    var date = new Date();
+function getNowFormatDate(date) {
+    // var date = new Date();
     date =+date + 1000*60*60*24;
     date = new Date(date);
     var seperator1 = "-";
@@ -129,18 +171,48 @@ function getResult() {
     var trs = $("#xls_msg").children().children();
     courses++;
     var str = "";
-    for (var index = 0 ;index < indexArray.length;index ++)
-        str += "&columns=" +  (trs[indexArray[index] + 2].children)[courses].innerText;
-    url += str;
-    console.log(url);
+    for (var index = 0 ;index < indexArray.length;index ++){
+        // if (index == 0) str += "\"" + (trs[indexArray[index] + 2].children)[courses].innerText + "\"";
+        str += "&columns=" + (trs[indexArray[index] + 2].children)[courses].innerText;
+    }
+    console.log(str);
+    str = encodeURI(str).replace(/\+/g,'%2B')
     $.ajax({
         url: url,
-        type: "GET",
+        type: "POST",
+        data:str,
         success: function (data) {
-            console.log(data);
+            if (data.status == 0) {
+                alert(data.msg);
+                return;
+            }
+            var msgDiv = $("#xls_msg").children()[0];
+            msgDiv.innerHTML = "";
+            var tr = $("<tr style='font-size: 30px;background-color: #eee'></tr>").appendTo(msgDiv);
+            $("<th>学号</th>").appendTo(tr);
+            $("<th>最终成绩</th>").appendTo(tr);
+            var i = 0;
+            for (var stu in data.content){
+                tr = $("<tr style='font-size: 25px;background-color: " + (i%2 == 1 ? "#eee" : "#fff") + "'></tr>").appendTo(msgDiv);
+                $("<th>" + stu + "</th>").appendTo(tr);
+                $("<th>" + data.content[stu] + "</th>").appendTo(tr);
+                i ++;
+            }
+            settingPrompting("统计成绩");
+            setInstruction("成绩统计完成。点击下载可以下载如下统计的excel表 excel表按学号排序");
+            $("#before").hide();
+            $("#after").hide();
+            $("#download").show();
         }
     });
 }
+function settingPrompting(msg) {
+    $("#prompting").html(msg);
+}
+function setInstruction(msg) {
+    $("#instruction").html(msg);
+}
+
 
 function getInput(name,value) {
     if (name == "line")
@@ -148,7 +220,8 @@ function getInput(name,value) {
                 "<input type='radio' name='results' value='" + value +"'  onclick=\"paramLine(this)\">B" +
                 "<input type='radio' name='credits' value='" + value +"'  onclick=\"paramLine(this)\">C";
     else
-        return "<input type='checkbox' name='" + name + "' value='" + value +"'  onclick=\"coursesCHeck(this)\">";
+        return "<input type='checkbox' name='" + name + "' value='" + value +"'  onclick=\"coursesCHeck(this)\"  checked = 'true'>";
+        // return "<input type='checkbox' name='" + name + "' value='" + value +"'  onclick=\"coursesCHeck(this)\" >";
 }
 $(document).ready(function () {
 });

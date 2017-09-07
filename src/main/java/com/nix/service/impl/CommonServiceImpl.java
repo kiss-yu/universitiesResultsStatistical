@@ -4,19 +4,15 @@ import com.nix.service.CommonService;
 import com.nix.service.Const;
 import com.nix.util.Util;
 import com.nix.util.log.LogKit;
+import org.apache.poi.hssf.usermodel.HSSFCellStyle;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
-import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFCellStyle;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.lang.reflect.Member;
 import java.util.*;
 @Service
@@ -41,6 +37,26 @@ public class CommonServiceImpl implements CommonService{
         try {
             workbook = getWorkbook(file.getOriginalFilename(),  file.getInputStream());
             map.put("file_id", Const.createId(createFile(file)));
+            map.put("create_time",Const.getCreateTime((String) map.get("file_id")));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+        map.put("column",getColumn(workbook));
+        map.put("courese",getCourses(workbook));
+        return map;
+    }
+
+
+    @Override
+    public Map<String,Object> getParamMsg(String id) {
+        Workbook workbook ;
+        Map<String,Object> map = new HashMap<>();
+        try {
+            File file = new File(Const.getFileName(id));
+            workbook = getWorkbook(file.getName(), new FileInputStream(file));
+            map.put("file_id", id);
+            map.put("create_time",Const.getCreateTime(id));
         } catch (Exception e) {
             e.printStackTrace();
             return null;
@@ -72,15 +88,17 @@ public class CommonServiceImpl implements CommonService{
     public Map<String,Float> result(String id, Integer credits, Integer results, Integer courses, String[] columns, String formula) {
         Workbook workbook;
         File file = new File(Const.getFileName(id));
-//        File file = new File("E:/test/15045832284350115030902.xlsx");
         try {
             workbook = getWorkbook(file.getName(),  new FileInputStream(file));
         } catch (Exception e) {
-            e.printStackTrace();
             return null;
         }
-        return getStudentEndResult(getStudentMsg(workbook,credits,results,courses),columns,formula);
+        Map<String,Float> map = getStudentEndResult(getStudentMsg(workbook,credits,results,courses),columns,formula);
+        writeResult(map,file);
+        return map;
     }
+
+
 
     /**
      * 校验计算公式<br>
@@ -99,6 +117,62 @@ public class CommonServiceImpl implements CommonService{
         }
         return true;
     }
+
+    /**
+     * 对最终成绩按学号排序
+     * */
+    private String[] sort(Map<String,Float> map){
+        String[] student_id = new String[map.size()];
+        int i = 0;
+        for (Map.Entry<String,Float> entry:map.entrySet()){
+            student_id[i++] = entry.getKey();
+        }
+        Arrays.sort(student_id);
+        return student_id;
+    }
+
+    /**
+     * 计算完成后把结果保存入文件
+     * */
+    private void writeResult(Map<String,Float> result,File file){
+        String fileName = file.getName();
+        file.delete();
+        Workbook workbook;
+        try {
+            workbook = getWorkbook(Const.FILE_PATH + fileName,null);
+            Sheet sheet = workbook.createSheet("统计成绩结果");
+            int i = 0;
+            Row row = sheet.createRow(i++);
+            CellStyle style = workbook.createCellStyle();
+            sheet.setColumnWidth(0,30*256);
+            style.setAlignment(HSSFCellStyle.ALIGN_CENTER);
+            style.setVerticalAlignment(XSSFCellStyle.VERTICAL_CENTER);
+            style.setWrapText(true);
+            Cell cell = row.createCell(0);
+            cell.setCellStyle(style);
+            cell.setCellValue("学号");
+            cell = row.createCell(1);
+            cell.setCellStyle(style);
+            cell.setCellValue("最终成绩");
+            String[] studentIds = sort(result);
+            for (String id:studentIds){
+                row = sheet.createRow(i++);
+                cell = row.createCell(0);
+                cell.setCellStyle(style);
+                cell.setCellValue(id);
+                cell = row.createCell(1);
+                cell.setCellStyle(style);
+                cell.setCellValue(result.get(id));
+            }
+            FileOutputStream fileOutputStream = new FileOutputStream(Const.FILE_PATH + fileName);
+            workbook.write(fileOutputStream);
+            fileOutputStream.close();
+        }catch (Exception e){
+            LogKit.error(this.getClass(),"结果写入excel失败");
+        }
+    }
+
+
 
     /**
      * 根据参考学生筛选的课程算出每个学生课程的成绩
@@ -153,6 +227,7 @@ public class CommonServiceImpl implements CommonService{
             float credit = Float.parseFloat(result_credit.split("-")[1]);
             endResult += parseFormula(formula,result,credit,sumCredit,courseCount);
         }
+        endResult = (float) (((int)(endResult * 100))/100.0);
         results.put(studentId, endResult);
     }
     /**
@@ -208,6 +283,7 @@ public class CommonServiceImpl implements CommonService{
                 coursesMap = new HashMap();
                 student.put(studentId,coursesMap);
             }
+            if (coursesMap.containsKey(row1.getCell(courses).toString())) continue;
             coursesMap.put(row1.getCell(courses).toString(),row1.getCell(results).toString() + "-" + row1.getCell(credits));
         }
         return student;
@@ -221,10 +297,14 @@ public class CommonServiceImpl implements CommonService{
     private Workbook getWorkbook(String fileName,InputStream inputStream){
         Workbook workbook = null;
         try {
-            if (fileName.matches(".*xls"))
-                workbook = new HSSFWorkbook(inputStream);
-            else if (fileName.matches(".*xlsx"))
-                workbook = new XSSFWorkbook(inputStream);
+            if (fileName.matches(".*xls")) {
+                if (inputStream != null) workbook = new HSSFWorkbook(inputStream);
+                else workbook = new HSSFWorkbook();
+            }
+            else if (fileName.matches(".*xlsx")) {
+                if (inputStream != null) workbook = new XSSFWorkbook(inputStream);
+                else workbook = new XSSFWorkbook();
+            }
         } catch (Exception e) {
             e.printStackTrace();
             return null;
@@ -262,22 +342,26 @@ public class CommonServiceImpl implements CommonService{
      * */
     private List getCourses(Workbook workbook){
         Sheet sheet = workbook.getSheetAt(0);
-        int i = 0,j = 0;
+        int i = 0,j;
+        boolean isReadAll = false;
         List<List> lists = new ArrayList<>();
         String studentId = null;
         for (Iterator<Row> row = sheet.rowIterator(); row.hasNext();i++) {
             if (i == 0) {
-                row.next();
+                if (row.next().getCell(2) == null)
+                    isReadAll = true;
                 continue;
             }
             List column = new ArrayList();
             j = 0;
             for (Iterator<Cell> it = row.next().cellIterator(); it.hasNext(); j ++) {
                 Cell cell = it.next();
-                if (j == 0 && i == 1) {
-                    studentId = cell.toString();
-                }else if (j == 0 && !studentId.equals(cell.toString()))
-                    return lists;
+                if (!isReadAll){
+                    if (j == 0 && i == 1) {
+                        studentId = cell.toString();
+                    }else if (j == 0 && !studentId.equals(cell.toString()))
+                        return lists;
+                }
                 column.add(cell.toString());
             }
             lists.add(column);
@@ -286,13 +370,8 @@ public class CommonServiceImpl implements CommonService{
     }
 
     public static void main(String[] args) {
-        CommonServiceImpl service = new CommonServiceImpl();
-        service.result("",3,10,2,
-                new String[]{"大学英语【III】","大学物理实验【I(1)】","形势与政策[3]","Linux基础与应用","工程训练-电子技能训练I","综合课程设计Ⅰ","汇编语言程序设计",
-                             "中国近现代史纲要+形势与政策","线性代数【理工】","大学物理学【Ⅱ（2）】","大学物理实验【I(2)】","大学英语【IV】","数据结构","形势与政策[4]",
-                             "马克思主义基本原理概论+形势与政策","交换与路由","概率论与数理统计【理工】","大学生职业生涯规划","网络协议分析与开发","网络协议分析与开发课程设计",
-                             "计算机网络","数据结构课程设计【计算机类】"},
-                "credit*grade/sum_credit*0.8");
+       float endResult = 25.625352f;
+       System.out.println((((int)(endResult * 100))/100.0));
     }
 }
 

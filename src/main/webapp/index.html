@@ -14,11 +14,11 @@
 </div>
 <div class="panel panel-default">
     <div class="panel-body" >
-        <p class="text-center">
-            1：上传统计全班成绩的excel表（仅支持xls，xlsx后缀的excel表）(如果你已经上传过并得到了计算单元id值 直接输入id值点击获取下一步)<br/>
+        <p class="text-center" id="instruction">
+            1：上传统计全班成绩的excel表<b>请保证学生的重修成绩在正考成绩后面 请确保没有excel表没有空列</b>（仅支持xls，xlsx后缀的excel表）<br />(如果你已经上传过并得到了计算单元id值 直接输入id值点击获取下一步)<br/>
             excel上传后后台会返回如样例的统计表，然后按下提示选择<br/>
             A选择课程所在列 B选择成绩所在类 C选择学分所在列<br/>
-            选择课程列选择需要本次需要计算的课程<br/>
+            选择课程列选择需要本次需要计算的课程<b>请确保事例同学的重修课程，个人选修课程被剔除</b><br/>
             （如实例：选择了3列为课程列 第6列为成绩类 第4列为学分列 课程选择了综合课程设计和线性代数）<br>
             选择完成后输入单科成绩的计算公式<br/>
             单科成绩:grade 单科学分:credit 需要计算课程的总学分:sum_credit 需要计算的科目总数:course_count<br/>
@@ -34,10 +34,10 @@
                 </a>
                 <a href="javascript:;" class="file" onclick="uploadXls()">上传
                 </a><br />
-                计算单元id：<input type="text" value="0"  style="width: 100%;height: 30px;border: #e3dfe4 2px solid;border-radius: 2%;">
+                计算单元id：<input type="text" value="0"  name="file_id" style="width: 100%;height: 30px;border: #e3dfe4 2px solid;border-radius: 2%;">
                 <br />
                 <br />
-                <a href="javascript:;" class="file" onclick="uploadXls()">获取下一步
+                <a href="javascript:;" class="file" onclick="getMsgById()">获取下一步
                 </a>
             </div>
             <div id="after" hidden>
@@ -49,10 +49,13 @@
                 <a href="javascript:;" class="file" onclick="getResult()">确定计算
                 </a>
             </div>
-
+            <div id="download" hidden>
+                <a href="javascript:;" class="file" onclick="downloadExcel()">点击下载
+                </a><br />
+            </div>
         </form>
     </div>
-    <div class="panel-heading text-center" style="background-color: #fff"><h3>参考标本</h3></div>
+    <div class="panel-heading text-center" style="background-color: #fff"><h3 id="prompting">参考标本</h3></div>
     <form id="xls_msg">
         <table class="table">
             <tr style="background-color: rgb(238, 238, 238);" onmouseover="changeTrBackground(this)"
